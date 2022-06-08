@@ -1,34 +1,22 @@
 #include <stdio.h>
 #include <stdlib.h>
-
 #include <netdb.h>
 #include <netinet/in.h>
-
 #include <string.h>
 #include <unistd.h>
 #include <stdbool.h>
 #include <time.h>
 
-void write_file(int sockfd, char *filename)
+void write_file(char *filename, char *content)
 {
     int n;
     FILE *fp;
     char fullefilename[64] = "./client_files/";
     strcat(fullefilename, filename);
-    char buffer[1024];
-
+    printf("content: %s", content);
     fp = fopen(fullefilename, "w");
-    while (1)
-    {
-        n = recv(sockfd, buffer, 1024, 0);
-        if (n <= 0)
-        {
-            break;
-            return;
-        }
-        fprintf(fp, "%s", buffer);
-        bzero(buffer, 1024);
-    }
+    fprintf(fp, "%s", content);
+    fclose(fp);
     return;
 }
 
@@ -40,7 +28,7 @@ int main(int argc, char *argv[])
     struct hostent *server;
 
     char buffer[256];
-    portno = 5000;
+    portno = 5002;
 
     // create socket and get file descriptor
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -111,8 +99,8 @@ int main(int argc, char *argv[])
 
         if (!bcmp(buffer, "choice:", 7))
         {
+            // printf("detected choice\n");
             bzero(buffer, 256);
-            // scanf("%s", buffer);
             fgets(buffer, sizeof(buffer), stdin);
             n = write(sockfd, buffer, strlen(buffer));
 
@@ -122,12 +110,23 @@ int main(int argc, char *argv[])
                 exit(1);
             }
 
-            struct sockaddr_in new_addr;
-            socklen_t addr_size;
-            addr_size = sizeof(new_addr);
-            int new_sock = accept(sockfd, (struct sockaddr *)&new_addr, &addr_size);
-            write_file(new_sock, buffer);
+            char bufferContent[1024];
+            bzero(bufferContent, 1024);
+            n = read(sockfd, bufferContent, 1024);
+            printf("%s\n", bufferContent);
+            printf("%s\n", bufferContent);
+            write_file(buffer, bufferContent);
+
+            printf("%s", buffer);
+            if (n < 0)
+            {
+                perror("ERROR while reading from socket");
+                exit(1);
+            }
             printf("[+]Data written in the file successfully.\n");
+            bzero(buffer, 256);
+            bzero(bufferContent, 1024);
+            fflush(stdin);
         }
 
         if (!bcmp(buffer, "quit", 4))

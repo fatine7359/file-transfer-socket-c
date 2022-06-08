@@ -43,6 +43,7 @@ void send_file(FILE *fp, int sockfd)
 
     while (fgets(data, 1024, fp) != NULL)
     {
+        printf("data %s", data);
         if (send(sockfd, data, sizeof(data), 0) == -1)
         {
             perror("[-]Error in sending file.");
@@ -54,7 +55,7 @@ void send_file(FILE *fp, int sockfd)
 
 int main(int argc, char *argv[])
 {
-    const uint16_t port_number = 5000;
+    const uint16_t port_number = 5002;
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
     struct sockaddr_in *server_sockaddr = init_sockaddr_in(port_number);
@@ -100,6 +101,7 @@ int main(int argc, char *argv[])
 
             while (1)
             {
+                bzero(buffer, buffer_len * sizeof(char));
                 read(client_fd, buffer, buffer_len);
 
                 if (strcmp(buffer, "close\n") == 0)
@@ -135,9 +137,12 @@ int main(int argc, char *argv[])
                 {
                     char question[] = "choice:";
                     send(client_fd, question, strlen(question), 0);
+                    bzero(buffer, buffer_len * sizeof(char));
                     read(client_fd, buffer, buffer_len);
-                    char filename[64] = "./server_file/";
+                    char filename[64] = "./server_files/";
                     strcat(filename, buffer);
+                    filename[strlen(filename) - 1] = '\0';
+                    printf("the file is: %s", filename);
                     FILE *fp = fopen(filename, "r");
                     if (fp == NULL)
                     {
