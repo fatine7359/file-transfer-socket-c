@@ -43,7 +43,7 @@ void send_file(FILE *fp, int sockfd)
 
     while (fgets(data, 1024, fp) != NULL)
     {
-        printf("data %s", data);
+        printf("========> data %s", data);
         if (send(sockfd, data, sizeof(data), 0) == -1)
         {
             perror("[-]Error in sending file.");
@@ -51,11 +51,16 @@ void send_file(FILE *fp, int sockfd)
         }
         bzero(data, 1024);
     }
+    if (send(sockfd, "end", sizeof("end"), 0) == -1)
+    {
+        perror("[-]Error in sending file.");
+        exit(1);
+    }
 }
 
 int main(int argc, char *argv[])
 {
-    const uint16_t port_number = 5002;
+    const uint16_t port_number = 5001;
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
     struct sockaddr_in *server_sockaddr = init_sockaddr_in(port_number);
@@ -133,7 +138,7 @@ int main(int argc, char *argv[])
                     continue;
                 }
 
-                if (strcmp(buffer, "download\n") == 0)
+                else if (strcmp(buffer, "download\n") == 0)
                 {
                     char question[] = "choice:";
                     send(client_fd, question, strlen(question), 0);
@@ -149,12 +154,12 @@ int main(int argc, char *argv[])
                         perror("[-]Error in reading file.");
                         exit(1);
                     }
-
+                    bzero(buffer, buffer_len * sizeof(char));
                     send_file(fp, client_fd);
                     printf("[+]File data sent successfully.\n");
                 }
 
-                if (strlen(buffer) == 0)
+                else if (strlen(buffer) == 0)
                 {
                     clock_t d = clock() - last_operation;
                     double dif = 1.0 * d / CLOCKS_PER_SEC;
@@ -170,17 +175,18 @@ int main(int argc, char *argv[])
 
                     continue;
                 }
+                else
+                {
+                    printf("Process %d: ", getpid());
+                    printf("Received `%s`. Processing... ", buffer);
 
-                printf("Process %d: ", getpid());
-                printf("Received `%s`. Processing... ", buffer);
+                    free(response);
+                    response = process_operation(buffer);
+                    bzero(buffer, buffer_len * sizeof(char));
 
-                free(response);
-                response = process_operation(buffer);
-                bzero(buffer, buffer_len * sizeof(char));
-
-                send(client_fd, response, strlen(response), 0);
-                printf("Responded with `%s`. Waiting for a new query...\n", response);
-
+                    send(client_fd, response, strlen(response), 0);
+                    printf("Responded with `%s`. Waiting for a new query...\n", response);
+                }
                 last_operation = clock();
             }
             exit(0);

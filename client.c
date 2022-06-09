@@ -7,15 +7,24 @@
 #include <stdbool.h>
 #include <time.h>
 
-void write_file(char *filename, char *content)
+void write_file(char *filename, int sockfd)
 {
     int n;
     FILE *fp;
     char fullefilename[64] = "./client_files/";
     strcat(fullefilename, filename);
-    printf("content: %s", content);
     fp = fopen(fullefilename, "w");
-    fprintf(fp, "%s", content);
+    char bufferContent[1024] = {0};
+    while (bcmp(bufferContent, "end", 3))
+    {
+        bzero(bufferContent, 1024);
+        n = read(sockfd, bufferContent, 1024);
+        printf("%s", bufferContent);
+        if (bcmp(bufferContent, "end", 3))
+        {
+            fprintf(fp, "%s", bufferContent);
+        }
+    }
     fclose(fp);
     return;
 }
@@ -28,7 +37,7 @@ int main(int argc, char *argv[])
     struct hostent *server;
 
     char buffer[256];
-    portno = 5002;
+    portno = 5001;
 
     // create socket and get file descriptor
     sockfd = socket(AF_INET, SOCK_STREAM, 0);
@@ -97,7 +106,7 @@ int main(int argc, char *argv[])
             }
         }
 
-        if (!bcmp(buffer, "choice:", 7))
+        else if (!bcmp(buffer, "choice:", 7))
         {
             // printf("detected choice\n");
             bzero(buffer, 256);
@@ -110,14 +119,8 @@ int main(int argc, char *argv[])
                 exit(1);
             }
 
-            char bufferContent[1024];
-            bzero(bufferContent, 1024);
-            n = read(sockfd, bufferContent, 1024);
-            printf("%s\n", bufferContent);
-            printf("%s\n", bufferContent);
-            write_file(buffer, bufferContent);
+            write_file(buffer, sockfd);
 
-            printf("%s", buffer);
             if (n < 0)
             {
                 perror("ERROR while reading from socket");
@@ -125,11 +128,10 @@ int main(int argc, char *argv[])
             }
             printf("[+]Data written in the file successfully.\n");
             bzero(buffer, 256);
-            bzero(bufferContent, 1024);
             fflush(stdin);
         }
 
-        if (!bcmp(buffer, "quit", 4))
+        else if (!bcmp(buffer, "quit", 4))
             break;
     }
     return 0;
