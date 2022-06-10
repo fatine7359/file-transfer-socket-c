@@ -71,7 +71,7 @@ int main(int argc, char *argv[])
     // inside this while loop, implement communicating with read/write or send/recv function
     while (1)
     {
-        printf("What do you want to say? ");
+        printf("Client:  ");
         bzero(buffer, 256);
         // scanf("%s", buffer);
         fgets(buffer, sizeof(buffer), stdin);
