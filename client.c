@@ -13,6 +13,8 @@ void write_file(char *filename, int sockfd)
     FILE *fp;
     char fullefilename[64] = "./client_files/";
     strcat(fullefilename, filename);
+
+    // Ouvrir un fichier en mode écriture pour mettre dedans le contenu envoyé par le serveur
     fp = fopen(fullefilename, "w");
     char bufferContent[1024] = {0};
     while (bcmp(bufferContent, "end", 3))
@@ -22,6 +24,7 @@ void write_file(char *filename, int sockfd)
         printf("%s", bufferContent);
         if (bcmp(bufferContent, "end", 3))
         {
+            // Ecrire dans le fichier pointé par fp
             fprintf(fp, "%s", bufferContent);
         }
     }
@@ -57,6 +60,8 @@ int main(int argc, char *argv[])
 
     // connect to server with server address which is set above (serv_addr)
 
+    // permet à un client d’établir une communication active avec un serveur
+    // On lui passe en parametre la socket du client et l'adresse du serveur
     if (connect(sockfd, (struct sockaddr *)&serv_addr, sizeof(serv_addr)) < 0)
     {
         perror("ERROR while connecting");
@@ -71,6 +76,7 @@ int main(int argc, char *argv[])
         // scanf("%s", buffer);
         fgets(buffer, sizeof(buffer), stdin);
 
+        // Le client écrit au niveau de la socket client
         n = write(sockfd, buffer, strlen(buffer));
 
         if (n < 0)
@@ -80,6 +86,7 @@ int main(int argc, char *argv[])
         }
 
         bzero(buffer, 256);
+        // Client Lit à partir de la socket client
         n = read(sockfd, buffer, 255);
 
         if (n < 0)
@@ -95,6 +102,7 @@ int main(int argc, char *argv[])
             while (bcmp(buffer, "end", 3))
             {
                 bzero(buffer, 256);
+                // Lire les données envoyer par le serveur (le fichier est lue ligne par ligne)
                 n = read(sockfd, buffer, 255);
                 if (n < 0)
                 {
@@ -111,6 +119,7 @@ int main(int argc, char *argv[])
             // printf("detected choice\n");
             bzero(buffer, 256);
             fgets(buffer, sizeof(buffer), stdin);
+            // Client écrit dans la socket le mot choice pour indiquer au serveur qu'il veut choisir le fichier //à lire
             n = write(sockfd, buffer, strlen(buffer));
 
             if (n < 0)

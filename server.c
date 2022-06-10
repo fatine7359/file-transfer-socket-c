@@ -41,9 +41,12 @@ void send_file(FILE *fp, int sockfd)
     int n;
     char data[1024] = {0};
 
+    // Lire le contenu du fichier ligne par ligne pointé par fp et le mettre dans la variable data
     while (fgets(data, 1024, fp) != NULL)
     {
         printf("========> data %s", data);
+
+        // Envoyer le contenu lu à travers la socket sockfd
         if (send(sockfd, data, sizeof(data), 0) == -1)
         {
             perror("[-]Error in sending file.");
@@ -51,6 +54,9 @@ void send_file(FILE *fp, int sockfd)
         }
         bzero(data, 1024);
     }
+
+    // Indiquer la fin de l'envoie (vu qu'on envoie ligne par ligne donc à un moment donné, il faut
+    // indiquer au client la fin de l'envoie)
     if (send(sockfd, "end", sizeof("end"), 0) == -1)
     {
         perror("[-]Error in sending file.");
@@ -61,18 +67,23 @@ void send_file(FILE *fp, int sockfd)
 int main(int argc, char *argv[])
 {
     const uint16_t port_number = 5001;
+    // Creation de la socket coté serveur: AF_INET (domaine), SOCK_STREAM (Mode connecté), choix du protocole de transport (0==par défaut)
     int server_fd = socket(AF_INET, SOCK_STREAM, 0);
 
     struct sockaddr_in *server_sockaddr = init_sockaddr_in(port_number);
     struct sockaddr_in *client_sockaddr = malloc(sizeof(struct sockaddr_in));
+
     socklen_t server_socklen = sizeof(*server_sockaddr);
     socklen_t client_socklen = sizeof(*client_sockaddr);
 
+    // bind du socket serveur
     if (bind(server_fd, (const struct sockaddr *)server_sockaddr, server_socklen) < 0)
     {
         printf("Error! Bind has failed\n");
         exit(0);
     }
+    // listen du socket server
+    // Le serveur est pret pour recevoir les requetes du client
     if (listen(server_fd, 3) < 0)
     {
         printf("Error! Can't listen\n");
@@ -87,12 +98,17 @@ int main(int argc, char *argv[])
 
     while (1)
     {
+        // permet à un serveur de recevoir la communication entrante (client),
+        // Creer une nouvelle socket (socket de service)
+        // Le srveur garde l'ancienne socket pour recevoir les prochaines requetes
         int client_fd = accept(server_fd, (struct sockaddr *)&client_sockaddr, &client_socklen);
 
         pid = fork();
 
         if (pid == 0)
         {
+            // Le fils travaille avec la socket de service (client_fd)
+            // Le père travaille avec la socket d'écoute (server_fd)
             close(server_fd);
 
             if (client_fd == -1)
@@ -107,8 +123,11 @@ int main(int argc, char *argv[])
             while (1)
             {
                 bzero(buffer, buffer_len * sizeof(char));
+
+                // Lire à partir de la requete
                 read(client_fd, buffer, buffer_len);
 
+                // Si le client envoie une demande "close"
                 if (strcmp(buffer, "close\n") == 0)
                 {
                     printf("Process %d: ", getpid());
@@ -118,12 +137,16 @@ int main(int argc, char *argv[])
                     break;
                 }
 
+                // Si le client demande la liste des fichiers disponibles au niveau serveur
                 if (strcmp(buffer, "files\n") == 0)
                 {
                     char declaration[] = "Files:";
+                    // Le serveur envoie au client à travers la socket de service (client_fd)
                     send(client_fd, declaration, strlen(declaration), 0);
                     DIR *d;
                     struct dirent *dir;
+
+                    // On accède au répertoire server_files
                     d = opendir("./server_files");
                     if (d)
                     {
@@ -138,16 +161,20 @@ int main(int argc, char *argv[])
                     continue;
                 }
 
+                // Si le client demande le download
                 else if (strcmp(buffer, "download\n") == 0)
                 {
                     char question[] = "choice:";
+                    // Le seveur envoie au client choice pour demander le choix du fichier à transferer
                     send(client_fd, question, strlen(question), 0);
                     bzero(buffer, buffer_len * sizeof(char));
+                    // Le serveur lit la requete du client
                     read(client_fd, buffer, buffer_len);
                     char filename[64] = "./server_files/";
                     strcat(filename, buffer);
                     filename[strlen(filename) - 1] = '\0';
                     printf("the file is: %s", filename);
+                    // Le serveur ouvre le fichier demander par le client
                     FILE *fp = fopen(filename, "r");
                     if (fp == NULL)
                     {
@@ -155,10 +182,12 @@ int main(int argc, char *argv[])
                         exit(1);
                     }
                     bzero(buffer, buffer_len * sizeof(char));
+                    // Il fait appel à la fonction send_file() pour envoyer le fichier demander
                     send_file(fp, client_fd);
                     printf("[+]File data sent successfully.\n");
                 }
 
+                // Si rien n'est envoyé par le client
                 else if (strlen(buffer) == 0)
                 {
                     clock_t d = clock() - last_operation;
